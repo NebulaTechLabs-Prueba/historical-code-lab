@@ -4,10 +4,13 @@
 import { obtenerApiKey } from 'backend/maps';
 
 $w.onReady(function () {
-    console.log("Página lista, llamando a backend para obtener clave API...");
-    console.log(obtenerApiKey());
-  $w("#botonPrueba").onClick(() => {
-      console.log("Botón clickeado, llamando a backend...");
-    $w("#textoPrueba").text = "Obteniendo clave API...";
+  $w("#btnObtenerApiKey").onClick(() => {
+    obtenerApiKey().then(({ apiKey, backendMsg }) => {
+      console.log(backendMsg); // Muestra el mensaje del backend
+      $w("#textApiKey").text = `Clave API: ${apiKey}`; // Muestra la clave API en el elemento de texto
+    }).catch((error) => {
+      console.error("Error al obtener la clave API:", error);
+      $w("#textApiKey").text = "Error al obtener la clave API.";
+    });
   });
 });
