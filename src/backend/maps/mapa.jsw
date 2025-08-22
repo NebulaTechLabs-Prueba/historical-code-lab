@@ -1,0 +1,8 @@
+import { getSecret } from 'wix-secrets-backend';
+
+export async function obtenerApiKey() {
+  const apiKey = await getSecret("MapNebulaKey");
+  const backendMsg = `Clave obtenida en backend: ${apiKey}`;
+  // Devuelve un objeto con la clave y el mensaje
+  return { apiKey, backendMsg };
+}
