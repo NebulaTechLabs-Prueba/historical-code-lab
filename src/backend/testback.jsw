@@ -1,0 +1,11 @@
+// backend/test.jsw
+export function saludarDesdeBackend() {
+  return "¡Hola desde el backend!";
+}
+    import { secrets } from 'wix-secrets-backend';
+
+    export async function obtenerMiClaveSecreta() {
+        const claveApi = await secrets.getSecret("miClaveDeAPI");
+        console.log("Mi clave API es:", claveApi);
+        return claveApi;
+    }
