@@ -1,11 +1,15 @@
+import { getSecret } from 'wix-secrets-backend';
+
+/**
+ * Devuelve la API Key almacenada en Wix Secrets Manager bajo el nombre 'MapNebulaKey'.
+ * Llama esta función desde el frontend usando:
+ * import { obtenerApiKey } from 'backend/testback';
+ */
+export async function obtenerApiKey() {
+  const apiKey = await getSecret('MapNebulaKey');
+  return apiKey;
+}
 // backend/test.jsw
 export function saludarDesdeBackend() {
-  return "¡Hola desde el backend!";
+  return "Saludos desde el backend J S W!";
 }
-    import { secrets } from 'wix-secrets-backend';
-
-    export async function obtenerMiClaveSecreta() {
-        const claveApi = await secrets.getSecret("miClaveDeAPI");
-        console.log("Mi clave API es:", claveApi);
-        return claveApi;
-    }

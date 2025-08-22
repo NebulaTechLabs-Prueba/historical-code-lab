@@ -1,13 +1,4 @@
-import { obtenerApiKey } from 'backend/maps';
-
-$w.onReady(function () {
-  $w("#btnObtenerApiKey").onClick(() => {
-    obtenerApiKey().then(({ apiKey, backendMsg }) => {
-      console.log(backendMsg); // Muestra el mensaje del backend
-      $w("#textApiKey").text = `Clave API: ${apiKey}`; // Muestra la clave API en el elemento de texto
-    }).catch((error) => {
-      console.error("Error al obtener la clave API:", error);
-      $w("#textApiKey").text = "Error al obtener la clave API.";
-    });
-  });
-});
+/**
+ * Este archivo `.jsw` sirve como un módulo backend en Wix Velo, permitiendo exponer funciones personalizadas que pueden ser llamadas de forma segura desde el frontend.
+ * Su razón de existir es encapsular la lógica del servidor, proteger datos sensibles y facilitar la comunicación entre el cliente y el backend, asegurando así una arquitectura más segura y mantenible.
+ */
