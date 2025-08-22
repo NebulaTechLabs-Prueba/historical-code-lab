@@ -1,8 +1,7 @@
-import { getSecret } from 'wix-secrets-backend';
 
 export async function obtenerApiKey() {
   const apiKey = 123541234; // Simula la obtención de una clave API desde un servicio seguro
   const backendMsg = `Clave obtenida en backend: ${apiKey}`;
   // Devuelve un objeto con la clave y el mensaje
-  return { apiKey, backendMsg };
+  return backendMsg;
 }
