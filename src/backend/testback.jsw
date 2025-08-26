@@ -13,3 +13,29 @@ export async function obtenerApiKey() {
 export function saludarDesdeBackend() {
   return "Saludos desde el backend J S W!";
 }
+
+export async function obtenerRutaDesdeUbicacion(origen, destino) {
+  const apiKey = await getSecret("MapNebulaKey");
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origen}&destination=${destino}&key=${apiKey}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Error al obtener la ruta desde Google Maps");
+  }
+
+  const data = await response.json();
+  
+  if (data.routes && data.routes.length > 0) {
+    const route = data.routes[0];
+    const leg = route.legs[0];
+    // Devuelve un objeto con el polyline y la información de distancia/duración
+    return {
+      polyline: route.overview_polyline.points,
+      distance: leg.distance, // Objeto con .text y .value
+      duration: leg.duration, // Objeto con .text y .value
+    };
+  } else {
+    return null; // O manejar el caso de que no se encuentren rutas
+  }
+}
+

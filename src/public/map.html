@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo</title>
+    <style>
+        html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
+        /* Evita que la UI de Google (Street View, etc.) tape la info window */
+        .gm-style-iw-button { display: none !important; }
+        .gm-style-iw-d { overflow: auto !important; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let userMarker;
+        let destinationMarker;
+        let routePolyline;
+        let infoWindow;
+        let wixPage;
+
+        // 1. Escucha los mensajes desde la página de Wix
+        window.addEventListener("message", (event) => {
+            if (!event.data) return;
+
+            if (!wixPage) {
+                wixPage = event.source;
+            }
+
+            const { action, apiKey, lat, lng, polyline, info, destino } = event.data;
+
+            switch (action) {
+                case "centrarEnUbicacion":
+                    centrarEnUbicacion(lat, lng);
+                    break;
+                case "dibujarRutaConInfo":
+                    dibujarRutaConInfo({ polyline, info, destino });
+                    break;
+            }
+            
+            if (apiKey && !window.google) {
+                cargarScriptGoogleMaps(apiKey);
+            }
+        });
+
+        // 2. Carga el script de Google Maps, incluyendo la librería "geometry"
+        function cargarScriptGoogleMaps(apiKey) {
+            const script = document.createElement("script");
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=geometry`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        // 3. Inicializa el mapa y los objetos reutilizables
+        window.initMap = function () {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 40.416775, lng: -3.703790 },
+                zoom: 12,
+            });
+
+            routePolyline = new google.maps.Polyline({
+                strokeColor: '#0000FF',
+                strokeOpacity: 0.9,
+                strokeWeight: 6,
+                map: map
+            });
+
+            // Marcador para el destino, se reutilizará
+            destinationMarker = new google.maps.Marker({ map: map });
+            // InfoWindow que se reutilizará
+            infoWindow = new google.maps.InfoWindow();
+
+            // 4. Añade un listener de clic al mapa
+            map.addListener("click", (e) => {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                if (wixPage) {
+                    wixPage.postMessage({ action: "destinoSeleccionado", lat, lng }, "*");
+                }
+            });
+        };
+
+        // 5. Centra el mapa en la ubicación del usuario
+        function centrarEnUbicacion(lat, lng) {
+            if (!map) return;
+            const posicion = { lat, lng };
+            map.setCenter(posicion);
+            map.setZoom(15);
+
+            if (!userMarker) {
+                userMarker = new google.maps.Marker({ position: posicion, map: map, title: "Tu ubicación" });
+            } else {
+                userMarker.setPosition(posicion);
+            }
+        }
+
+        // 6. Dibuja la ruta, el marcador de destino y muestra el InfoWindow
+        function dibujarRutaConInfo(data) {
+            const { polyline, info, destino } = data;
+
+            if (!map || !routePolyline || !polyline) return;
+            
+            // Dibuja la línea de la ruta
+            const path = google.maps.geometry.encoding.decodePath(polyline);
+            routePolyline.setPath(path);
+
+            // Coloca el marcador en el destino
+            const destinoLatLng = new google.maps.LatLng(destino.lat, destino.lng);
+            destinationMarker.setPosition(destinoLatLng);
+            destinationMarker.setTitle("Destino");
+
+            // Prepara y muestra el InfoWindow anclado al marcador de destino
+            infoWindow.setContent(info);
+            infoWindow.open(map, destinationMarker);
+        }
+
+    </script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 // API Reference: https://www.wix.com/velo/reference/api-overview/introduction
 // “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
 
+import { obtenerApiKey } from "backend/testback";
+import { obtenerRutaDesdeUbicacion } from "backend/testback";
+import wixWindow from "wix-window";
 
-import { obtenerApiKey } from 'backend/testback';
-import wixWindow from 'wix-window';
-
-$w.onReady(function () {
+$w.onReady( async function () {
   console.log("Página Blanca Pruebas lista - Frontend");
 
   // Botón 1: Verificar comunicación con backend
@@ -20,9 +20,8 @@ $w.onReady(function () {
     }
   });
 
-
   // Al cargar la página, pasar la API Key al HTML Component para inicializar el mapa JS interactivo
-  obtenerApiKey().then(apiKey => {
+  obtenerApiKey().then((apiKey) => {
     $w("#htmlMapa").postMessage({ apiKey });
   });
 
@@ -41,6 +40,56 @@ $w.onReady(function () {
       }
     } catch (error) {
       $w("#textoEstado").text = "No se pudo obtener la ubicación";
+    }
+  });
+
+  let clickCounter = 0;
+  // Escucha mensajes desde el iFrame del mapa (ej: cuando el usuario hace clic en un destino)
+  $w("#htmlMapa").onMessage(async (event) => {
+    clickCounter++;
+    console.log(`----------\nVelo (Intento #${clickCounter}): Mensaje recibido desde iFrame.`);
+    console.log(`Velo (Intento #${clickCounter}): Objeto event.data crudo recibido:`, JSON.stringify(event.data));
+    
+    const { action, lat, lng } = event.data;
+
+    if (action === "destinoSeleccionado") {
+      console.log(`Velo (Intento #${clickCounter}): Acción 'destinoSeleccionado' reconocida.`);
+      $w("#textoEstado").text = `Calculando ruta (intento ${clickCounter})...`;
+
+      try {
+        // 1. Obtener la ubicación ACTUAL del usuario como origen
+        const position = await wixWindow.getCurrentGeolocation();
+        const origen = `${position.coords.latitude},${position.coords.longitude}`;
+        const destino = `${lat},${lng}`;
+        console.log(`Velo (Intento #${clickCounter}): Origen: ${origen}, Destino: ${destino}`);
+
+        // 2. Llamar a la función del backend para obtener la ruta
+        console.log(`Velo (Intento #${clickCounter}): Llamando a obtenerRutaDesdeUbicacion...`);
+        const ruta = await obtenerRutaDesdeUbicacion(origen, destino);
+        console.log(`Velo (Intento #${clickCounter}): Ruta recibida desde backend.`);
+
+        if (ruta && ruta.polyline) {
+          const infoRuta = `<strong>Distancia:</strong> ${ruta.distance.text}<br><strong>Duración:</strong> ${ruta.duration.text}`;
+          
+          // 3. Enviar un objeto completo al iFrame para que dibuje la ruta y muestre el InfoWindow
+          console.log(`Velo (Intento #${clickCounter}): Enviando datos de ruta e InfoWindow al iFrame.`);
+          $w("#htmlMapa").postMessage({
+            action: "dibujarRutaConInfo", // Nueva acción más descriptiva
+            polyline: ruta.polyline,
+            info: infoRuta,
+            destino: { lat, lng }
+          });
+
+          // 4. También actualizamos el texto en la página de Velo (usamos .html para renderizar las etiquetas <strong> y <br>)
+          $w("#textoEstado").html = infoRuta;
+          console.log(`Velo (Intento #${clickCounter}): ${infoRuta.replace(/<br>/g, " ").replace(/<strong>/g, "").replace(/<\/strong>/g, "")}`);
+        } else {
+          throw new Error("La función del backend no devolvió una ruta válida.");
+        }
+      } catch (error) {
+        console.error(`Velo (Intento #${clickCounter}): Error al obtener y dibujar la ruta:`, error);
+        $w("#textoEstado").text = `Error al calcular la ruta (intento ${clickCounter}).`;
+      }
     }
   });
 });
