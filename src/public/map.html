@@ -6,7 +6,6 @@
     <title>Mapa Interactivo</title>
     <style>
         html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
-        /* Evita que la UI de Google (Street View, etc.) tape la info window */
         .gm-style-iw-button { display: none !important; }
         .gm-style-iw-d { overflow: auto !important; }
     </style>
@@ -16,21 +15,19 @@
 
     <script>
         let map;
-        let userMarker;
-        let destinationMarker;
+        let userMarker, destinationMarker;
         let routePolyline;
         let infoWindow;
         let wixPage;
+        let autocompleteService;
+        let geocoder;
 
         // 1. Escucha los mensajes desde la página de Wix
         window.addEventListener("message", (event) => {
             if (!event.data) return;
+            if (!wixPage) wixPage = event.source;
 
-            if (!wixPage) {
-                wixPage = event.source;
-            }
-
-            const { action, apiKey, lat, lng, polyline, info, destino } = event.data;
+            const { action, apiKey, lat, lng, polyline, info, destino, input, sourceId } = event.data;
 
             switch (action) {
                 case "centrarEnUbicacion":
@@ -39,6 +36,12 @@
                 case "dibujarRutaConInfo":
                     dibujarRutaConInfo({ polyline, info, destino });
                     break;
+                case "limpiarMapa":
+                    limpiarMapa();
+                    break;
+                case "getAutocompletePredictions":
+                    getAutocompletePredictions(input, sourceId);
+                    break;
             }
             
             if (apiKey && !window.google) {
@@ -46,10 +49,10 @@
             }
         });
 
-        // 2. Carga el script de Google Maps, incluyendo la librería "geometry"
+        // 2. Carga el script de Google Maps
         function cargarScriptGoogleMaps(apiKey) {
             const script = document.createElement("script");
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=geometry`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=geometry,places`;
             script.async = true;
             script.defer = true;
             document.head.appendChild(script);
@@ -62,35 +65,25 @@
                 zoom: 12,
             });
 
-            routePolyline = new google.maps.Polyline({
-                strokeColor: '#0000FF',
-                strokeOpacity: 0.9,
-                strokeWeight: 6,
-                map: map
-            });
-
-            // Marcador para el destino, se reutilizará
+            routePolyline = new google.maps.Polyline({ strokeColor: '#0000FF', strokeOpacity: 0.9, strokeWeight: 6, map: map });
             destinationMarker = new google.maps.Marker({ map: map });
-            // InfoWindow que se reutilizará
             infoWindow = new google.maps.InfoWindow();
+            autocompleteService = new google.maps.places.AutocompleteService();
+            geocoder = new google.maps.Geocoder();
 
-            // 4. Añade un listener de clic al mapa
             map.addListener("click", (e) => {
-                const lat = e.latLng.lat();
-                const lng = e.latLng.lng();
                 if (wixPage) {
-                    wixPage.postMessage({ action: "destinoSeleccionado", lat, lng }, "*");
+                    wixPage.postMessage({ action: "destinoSeleccionado", lat: e.latLng.lat(), lng: e.latLng.lng() }, "*");
                 }
             });
         };
 
-        // 5. Centra el mapa en la ubicación del usuario
+        // 4. Centra el mapa en la ubicación del usuario
         function centrarEnUbicacion(lat, lng) {
             if (!map) return;
             const posicion = { lat, lng };
             map.setCenter(posicion);
             map.setZoom(15);
-
             if (!userMarker) {
                 userMarker = new google.maps.Marker({ position: posicion, map: map, title: "Tu ubicación" });
             } else {
@@ -98,24 +91,43 @@
             }
         }
 
-        // 6. Dibuja la ruta, el marcador de destino y muestra el InfoWindow
+        // 5. Dibuja la ruta y muestra la información
         function dibujarRutaConInfo(data) {
             const { polyline, info, destino } = data;
-
             if (!map || !routePolyline || !polyline) return;
             
-            // Dibuja la línea de la ruta
             const path = google.maps.geometry.encoding.decodePath(polyline);
             routePolyline.setPath(path);
 
-            // Coloca el marcador en el destino
             const destinoLatLng = new google.maps.LatLng(destino.lat, destino.lng);
             destinationMarker.setPosition(destinoLatLng);
             destinationMarker.setTitle("Destino");
 
-            // Prepara y muestra el InfoWindow anclado al marcador de destino
             infoWindow.setContent(info);
             infoWindow.open(map, destinationMarker);
+        }
+
+        // 6. Limpia la ruta y marcadores del mapa
+        function limpiarMapa() {
+            if (routePolyline) routePolyline.setPath([]);
+            if (destinationMarker) destinationMarker.setPosition(null);
+            if (infoWindow) infoWindow.close();
+        }
+
+        // 7. Obtiene predicciones de autocompletado
+        function getAutocompletePredictions(input, sourceId) {
+            if (!autocompleteService || !input) {
+                wixPage.postMessage({ action: "autocompleteResults", predictions: [], sourceId: sourceId }, "*");
+                return;
+            }
+            autocompleteService.getPlacePredictions({ input: input }, (predictions, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    const results = predictions.map(p => ({ description: p.description, place_id: p.place_id }));
+                    wixPage.postMessage({ action: "autocompleteResults", predictions: results, sourceId: sourceId }, "*");
+                } else {
+                    wixPage.postMessage({ action: "autocompleteResults", predictions: [], sourceId: sourceId }, "*");
+                }
+            });
         }
 
     </script>
