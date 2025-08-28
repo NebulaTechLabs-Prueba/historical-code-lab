@@ -15,26 +15,30 @@
 
     <script>
         let map;
-        let userMarker, destinationMarker;
-        let routePolyline;
+        let userMarker;
+        let routePolylines = []; // Array para múltiples polilíneas
+        let routeMarkers = [];   // Array para múltiples marcadores
         let infoWindow;
         let wixPage;
         let autocompleteService;
         let geocoder;
+
+        // Colores para los diferentes tramos de la ruta
+        const routeColors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#A133FF', '#33FFA1'];
 
         // 1. Escucha los mensajes desde la página de Wix
         window.addEventListener("message", (event) => {
             if (!event.data) return;
             if (!wixPage) wixPage = event.source;
 
-            const { action, apiKey, lat, lng, polyline, info, destino, input, sourceId } = event.data;
+            const { action, apiKey, lat, lng, legs, info, sourceId } = event.data;
 
             switch (action) {
                 case "centrarEnUbicacion":
                     centrarEnUbicacion(lat, lng);
                     break;
                 case "dibujarRutaConInfo":
-                    dibujarRutaConInfo({ polyline, info, destino });
+                    dibujarRutaConInfo({ legs, info });
                     break;
                 case "limpiarMapa":
                     limpiarMapa();
@@ -61,12 +65,10 @@
         // 3. Inicializa el mapa y los objetos reutilizables
         window.initMap = function () {
             map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: 40.416775, lng: -3.703790 },
+                center: { lat: 10.4806, lng: -66.9036 }, // Centrado en Caracas
                 zoom: 12,
             });
 
-            routePolyline = new google.maps.Polyline({ strokeColor: '#0000FF', strokeOpacity: 0.9, strokeWeight: 6, map: map });
-            destinationMarker = new google.maps.Marker({ map: map });
             infoWindow = new google.maps.InfoWindow();
             autocompleteService = new google.maps.places.AutocompleteService();
             geocoder = new google.maps.Geocoder();
@@ -91,26 +93,71 @@
             }
         }
 
-        // 5. Dibuja la ruta y muestra la información
+        // 5. Dibuja la ruta con múltiples colores y marcadores
         function dibujarRutaConInfo(data) {
-            const { polyline, info, destino } = data;
-            if (!map || !routePolyline || !polyline) return;
-            
-            const path = google.maps.geometry.encoding.decodePath(polyline);
-            routePolyline.setPath(path);
+            const { legs, info } = data;
+            if (!map || !legs || legs.length === 0) return;
 
-            const destinoLatLng = new google.maps.LatLng(destino.lat, destino.lng);
-            destinationMarker.setPosition(destinoLatLng);
-            destinationMarker.setTitle("Destino");
+            limpiarMapa(); // Limpia cualquier ruta anterior
 
-            infoWindow.setContent(info);
-            infoWindow.open(map, destinationMarker);
+            const bounds = new google.maps.LatLngBounds();
+            let cumulativeDistance = 0;
+            let cumulativeDuration = 0;
+
+            legs.forEach((leg, index) => {
+                let legPath = []; // Array para las coordenadas de este tramo
+                cumulativeDistance += leg.distance.value;
+                cumulativeDuration += leg.duration.value;
+
+                // Iteramos sobre los pasos (steps) de cada tramo (leg)
+                leg.steps.forEach(step => {
+                    const stepPath = google.maps.geometry.encoding.decodePath(step.polyline.points);
+                    legPath = legPath.concat(stepPath);
+                });
+
+                const polyline = new google.maps.Polyline({
+                    path: legPath,
+                    strokeColor: routeColors[index % routeColors.length],
+                    strokeOpacity: 0.9,
+                    strokeWeight: 6,
+                    map: map
+                });
+                routePolylines.push(polyline);
+
+                legPath.forEach(latLng => bounds.extend(latLng));
+
+                const endMarker = new google.maps.Marker({
+                    position: leg.end_location,
+                    map: map,
+                });
+                routeMarkers.push(endMarker);
+
+                // Preparamos el contenido del InfoWindow para este marcador
+                const formattedCumulativeDistance = `${(cumulativeDistance / 1000).toFixed(1)} km`;
+                const formattedCumulativeDuration = `${Math.round(cumulativeDuration / 60)} mins`;
+                const shortAddress = leg.end_address.split(',')[0];
+
+                const infoContent = `<strong>Parada ${index + 1}</strong><br>` +
+                                  `<b>Ubicación:</b> ${shortAddress}<br>` +
+                                  `<b>Tramo:</b> ${leg.distance.text}, ${leg.duration.text}<br>` +
+                                  `<b>Total Acumulado:</b> ${formattedCumulativeDistance}, ${formattedCumulativeDuration}`;
+
+                // Añadimos un listener para mostrar el InfoWindow al hacer clic
+                endMarker.addListener('click', () => {
+                    infoWindow.setContent(infoContent);
+                    infoWindow.open(map, endMarker);
+                });
+            });
+
+            map.fitBounds(bounds); // Ajusta el zoom del mapa para mostrar toda la ruta
         }
 
-        // 6. Limpia la ruta y marcadores del mapa
+        // 6. Limpia todas las rutas y marcadores del mapa
         function limpiarMapa() {
-            if (routePolyline) routePolyline.setPath([]);
-            if (destinationMarker) destinationMarker.setPosition(null);
+            routePolylines.forEach(p => p.setMap(null));
+            routePolylines = [];
+            routeMarkers.forEach(m => m.setMap(null));
+            routeMarkers = [];
             if (infoWindow) infoWindow.close();
         }
 

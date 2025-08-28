@@ -161,16 +161,14 @@ ${logPrefix} Iniciando cálculo de ruta.`);
             const ruta = await obtenerRutaDesdeUbicacion(origen, destinoParaApi, waypoints);
             console.log(`${logPrefix} Ruta recibida desde backend.`);
 
-            if (ruta && ruta.polyline) {
-                const infoRuta = `<strong>Distancia Total:</strong> ${ruta.distance.text}<br><strong>Duración Total:</strong> ${ruta.duration.text}`;
-                const coordsDestinoFinal = destinoCoords || ruta.end_location;
+            if (ruta && ruta.legs && ruta.legs.length > 0) {
+                const infoRuta = `<strong>Distancia Total:</strong> ${ruta.totalDistance.text}<br><strong>Duración Total:</strong> ${ruta.totalDuration.text}`;
 
-                console.log(`${logPrefix} Enviando datos de ruta e InfoWindow al iFrame.`);
+                console.log(`${logPrefix} Enviando tramos (legs) de la ruta al iFrame.`);
                 $w("#htmlMapa").postMessage({
                     action: "dibujarRutaConInfo",
-                    polyline: ruta.polyline,
-                    info: infoRuta,
-                    destino: coordsDestinoFinal
+                    legs: ruta.legs,
+                    info: infoRuta
                 });
 
                 $w("#textoEstado").html = infoRuta;

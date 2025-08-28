@@ -36,12 +36,23 @@ export async function obtenerRutaDesdeUbicacion(origen, destino, waypoints) {
   if (data.routes && data.routes.length > 0) {
     const route = data.routes[0];
     
-    // Si hay múltiples paradas (legs), debemos sumar las distancias y duraciones
     let totalDistance = 0;
     let totalDuration = 0;
-    route.legs.forEach(leg => {
+
+    // Mapeamos cada tramo (leg) a un objeto con sus propios datos
+    const legs = route.legs.map(leg => {
       totalDistance += leg.distance.value;
       totalDuration += leg.duration.value;
+
+      return {
+        // Pasamos los steps directamente al frontend para que él construya la polilínea
+        steps: leg.steps,
+        distance: leg.distance,
+        duration: leg.duration,
+        start_location: leg.start_location,
+        end_location: leg.end_location,
+        end_address: leg.end_address, // Añadimos la dirección de destino del tramo
+      };
     });
 
     // Formatear los totales para mostrarlos al usuario
@@ -49,11 +60,9 @@ export async function obtenerRutaDesdeUbicacion(origen, destino, waypoints) {
     const formattedDuration = `${Math.round(totalDuration / 60)} mins`;
 
     return {
-      polyline: route.overview_polyline.points,
-      distance: { text: formattedDistance, value: totalDistance },
-      duration: { text: formattedDuration, value: totalDuration },
-      // La ubicación final es el final del último tramo
-      end_location: route.legs[route.legs.length - 1].end_location,
+      legs: legs, // Devolvemos el array de tramos
+      totalDistance: { text: formattedDistance, value: totalDistance },
+      totalDuration: { text: formattedDuration, value: totalDuration },
     };
   } else {
     return null; // O manejar el caso de que no se encuentren rutas
