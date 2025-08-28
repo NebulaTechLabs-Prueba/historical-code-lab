@@ -126,10 +126,17 @@
 
                 legPath.forEach(latLng => bounds.extend(latLng));
 
-                const endMarker = new google.maps.Marker({
+                // Preparamos las opciones del marcador, incluyendo el ícono si existe.
+                const markerOptions = {
                     position: leg.end_location,
                     map: map,
-                });
+                };
+
+                if (leg.iconUrl && leg.iconUrl !== '') {
+                    markerOptions.icon = leg.iconUrl;
+                }
+
+                const endMarker = new google.maps.Marker(markerOptions);
                 routeMarkers.push(endMarker);
 
                 // Preparamos el contenido del InfoWindow para este marcador

@@ -63,6 +63,7 @@ export async function obtenerRutaDesdeUbicacion(origen, destino, waypoints) {
       legs: legs, // Devolvemos el array de tramos
       totalDistance: { text: formattedDistance, value: totalDistance },
       totalDuration: { text: formattedDuration, value: totalDuration },
+      waypointOrder: route.waypoint_order, // Devolvemos el orden de las paradas optimizado
     };
   } else {
     return null; // O manejar el caso de que no se encuentren rutas

@@ -164,10 +164,26 @@ ${logPrefix} Iniciando cálculo de ruta.`);
             if (ruta && ruta.legs && ruta.legs.length > 0) {
                 const infoRuta = `<strong>Distancia Total:</strong> ${ruta.totalDistance.text}<br><strong>Duración Total:</strong> ${ruta.totalDuration.text}`;
 
-                console.log(`${logPrefix} Enviando tramos (legs) de la ruta al iFrame.`);
+                // --- Lógica de Íconos Personalizados (DEMO) ---
+                const iconUrlBase = "https://raw.githubusercontent.com/Concept211/Google-Maps-Markers/master/images/marker_";
+                const demoIcons = [
+                    `${iconUrlBase}red.png`,      // Corresponde a #FF5733 (Rojo-Naranja)
+                    `${iconUrlBase}green.png`,    // Corresponde a #33FF57 (Verde)
+                    `${iconUrlBase}blue.png`,     // Corresponde a #3357FF (Azul)
+                    `${iconUrlBase}pink.png`,     // Corresponde a #FF33A1 (Rosa)
+                ];
+
+                const augmentedLegs = ruta.legs.map((leg, index) => {
+                    // Asignamos un ícono de la lista demo. Si no hay, se asigna un string vacío.
+                    const iconUrl = demoIcons[index] || '';
+                    return { ...leg, iconUrl: iconUrl };
+                });
+                // --- Fin Lógica de Íconos ---
+
+                console.log(`${logPrefix} Enviando tramos (legs) aumentados con íconos al iFrame.`);
                 $w("#htmlMapa").postMessage({
                     action: "dibujarRutaConInfo",
-                    legs: ruta.legs,
+                    legs: augmentedLegs, // Enviamos los tramos con la info de los íconos
                     info: infoRuta
                 });
 
